@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления рассылками</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            background-color: var(--tg-theme-bg-color, #f5f5f5);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 20px;
+        }
+        .card {
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+            margin-bottom: 15px;
+        }
+        .btn-primary {
+            background-color: var(--tg-theme-button-color, #5288c1) !important;
+            color: var(--tg-theme-button-text-color, #ffffff) !important;
+            border: none;
+        }
+        .mailing-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mailing-stats {
+            font-size: 0.9rem;
+        }
+        .mailing-preview {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.03);
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Управление рассылками</h1>
+        
+        <div id="auth-error" class="alert alert-danger d-none">
+            Вы не авторизованы для использования этого приложения.
+        </div>
+        
+        <div id="content" class="d-none">
+            <div class="mb-4">
+                <button id="create-mailing-btn" class="btn btn-primary mb-3">Создать новую рассылку</button>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="show-inactive" checked>
+                        <label class="form-check-label" for="show-inactive">Показать только активные чаты</label>
+                    </div>
+                </div>
+                
+                <div id="stats-container" class="alert alert-info">
+                    Загрузка статистики...
+                </div>
+            </div>
+            
+            <h3>Последние рассылки</h3>
+            <div id="mailings-container">
+                <div class="text-center py-3">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p>Загрузка списка рассылок...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        // Получаем initData от Telegram
+        const initData = tg.initData;
+        
+        // Элементы DOM
+        const authErrorEl = document.getElementById('auth-error');
+        const contentEl = document.getElementById('content');
+        const createMailingBtn = document.getElementById('create-mailing-btn');
+        const showInactiveCheckbox = document.getElementById('show-inactive');
+        const statsContainerEl = document.getElementById('stats-container');
+        const mailingsContainerEl = document.getElementById('mailings-container');
+        
+        // Проверка авторизации
+        async function checkAuth() {
+            try {
+                // Проверяем, является ли пользователь администратором
+                const response = await fetch(`/api/chats?initData=${encodeURIComponent(initData)}`);
+                
+                if (response.ok) {
+                    // Пользователь авторизован, показываем контент
+                    authErrorEl.classList.add('d-none');
+                    contentEl.classList.remove('d-none');
+                    
+                    // Загружаем данные
+                    loadStats();
+                    loadMailings();
+                } else {
+                    // Пользователь не авторизован
+                    authErrorEl.classList.remove('d-none');
+                    contentEl.classList.add('d-none');
+                }
+            } catch (error) {
+                console.error('Ошибка при проверке авторизации:', error);
+                authErrorEl.textContent = `Ошибка авторизации: ${error.message}`;
+                authErrorEl.classList.remove('d-none');
+                contentEl.classList.add('d-none');
+            }
+        }
+        
+        // Загрузка статистики
+        async function loadStats() {
+            try {
+                // Здесь может быть запрос на получение статистики, но так как у нас нет соответствующего API,
+                // просто отображаем общую информацию о чатах
+                const response = await fetch(`/api/chats?initData=${encodeURIComponent(initData)}&show_only_active=${showInactiveCheckbox.checked}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Ошибка загрузки статистики: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                statsContainerEl.innerHTML = `
+                    <p><strong>Активных чатов:</strong> ${data.active_chats.length}</p>
+                    <p><strong>Недоступных чатов:</strong> ${data.unavailable_count}</p>
+                `;
+            } catch (error) {
+                console.error('Ошибка при загрузке статистики:', error);
+                statsContainerEl.innerHTML = `<div class="alert alert-danger">Ошибка при загрузке статистики: ${error.message}</div>`;
+            }
+        }
+        
+        // Загрузка списка рассылок
+        function loadMailings() {
+            // В данной версии мы имитируем загрузку рассылок,
+            // так как у нас нет соответствующего API эндпоинта
+            // В реальном приложении здесь должен быть запрос к API
+            
+            mailingsContainerEl.innerHTML = `
+                <div class="alert alert-info">
+                    Для получения списка рассылок используйте команду /mailing_list в боте.
+                    <br>
+                    Для создания новой рассылки нажмите кнопку "Создать новую рассылку" выше или используйте команду /create_mailing в боте.
+                </div>
+            `;
+        }
+        
+        // Создание новой рассылки
+        async function createMailing() {
+            // Перенаправляем пользователя на использование команды в боте
+            tg.sendMessage("Для создания новой рассылки используйте команду /create_mailing в боте");
+        }
+        
+        // Инициализация страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            // Проверяем авторизацию пользователя
+            checkAuth();
+            
+            // Обработчик кнопки создания рассылки
+            createMailingBtn.addEventListener('click', createMailing);
+            
+            // Обработчик переключателя показа только активных чатов
+            showInactiveCheckbox.addEventListener('change', loadStats);
+        });
+    </script>
+</body>
+</html>

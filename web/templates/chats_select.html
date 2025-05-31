@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Выбор получателей</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 16px;
+            color: var(--tg-theme-text-color, #000000);
+            background-color: var(--tg-theme-bg-color, #ffffff);
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--tg-theme-text-color, #000000);
+            text-align: center;
+        }
+        
+        .info-bar {
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            border: 1px solid var(--tg-theme-hint-color, #cccccc);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            color: var(--tg-theme-text-color, #000000);
+            background-color: var(--tg-theme-bg-color, #ffffff);
+        }
+        
+        .chat-list {
+            margin-bottom: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-hint-color, #cccccc);
+        }
+        
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--tg-theme-hint-color, rgba(204, 204, 204, 0.3));
+        }
+        
+        .chat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .chat-checkbox {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .chat-title {
+            flex-grow: 1;
+            font-size: 16px;
+        }
+        
+        .chat-type {
+            font-size: 12px;
+            color: var(--tg-theme-hint-color, #999999);
+            margin-left: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background-color: rgba(204, 204, 204, 0.2);
+        }
+        
+        .checkbox-count {
+            margin: 12px 0;
+            text-align: center;
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #999999);
+        }
+        
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+        }
+        
+        .select-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            transition: opacity 0.2s;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--tg-theme-hint-color, #999999);
+        }
+        
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: rgba(231, 76, 60, 0.1);
+            border-radius: 8px;
+        }
+        
+        .empty-result {
+            text-align: center;
+            padding: 30px 20px;
+            color: var(--tg-theme-hint-color, #999999);
+            font-size: 15px;
+        }
+        
+        /* Кастомный вид чекбоксов */
+        input[type="checkbox"] {
+            accent-color: var(--tg-theme-button-color, #2481cc);
+        }
+        
+        /* Анимация для элементов списка */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .chat-item {
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        /* Поддержка темной темы */
+        @media (prefers-color-scheme: dark) {
+            .info-bar {
+                background-color: rgba(255, 255, 255, 0.07);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Выбор получателей рассылки</h1>
+        
+        <div id="info-bar" class="info-bar">
+            Загрузка информации...
+        </div>
+        
+        <input type="text" id="search-box" class="search-box" placeholder="Поиск чатов..." />
+        
+        <div id="chat-list" class="chat-list">
+            <div class="loading">Загрузка списка чатов...</div>
+        </div>
+        
+        <div class="checkbox-count">
+            Выбрано: <span id="selected-count">0</span> чатов
+        </div>
+        
+        <div class="button-container">
+            <div class="select-buttons">
+                <button id="select-all">Выбрать все</button>
+                <button id="deselect-all">Снять выбор</button>
+            </div>
+            <button id="submit-button" disabled>Подтвердить</button>
+        </div>
+    </div>
+    
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        // Установка цветовой темы
+        document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
+        document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
+        document.documentElement.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
+        document.documentElement.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#2481cc');
+        document.documentElement.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
+        
+        // Получаем ID рассылки из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const broadcastId = parseInt(urlParams.get('broadcast_id') || '0');
+        
+        if (!broadcastId) {
+            document.getElementById('chat-list').innerHTML = '<div class="error">Ошибка: не указан ID рассылки</div>';
+            document.getElementById('submit-button').disabled = true;
+            document.getElementById('info-bar').innerText = 'Ошибка: не указан ID рассылки';
+        }
+        
+        // Элементы DOM
+        const chatListEl = document.getElementById('chat-list');
+        const infoBarEl = document.getElementById('info-bar');
+        const searchBoxEl = document.getElementById('search-box');
+        const selectAllBtn = document.getElementById('select-all');
+        const deselectAllBtn = document.getElementById('deselect-all');
+        const submitButton = document.getElementById('submit-button');
+        const selectedCountEl = document.getElementById('selected-count');
+        
+        // Хранение данных
+        let allChats = [];
+        let filteredChats = [];
+        let selectedChats = new Set();
+        let unavailableCount = 0;
+        
+        // Обновление счетчика выбранных чатов
+        function updateSelectedCount() {
+            selectedCountEl.innerText = selectedChats.size;
+            submitButton.disabled = selectedChats.size === 0;
+        }
+        
+        // Обработка поиска
+        searchBoxEl.addEventListener('input', filterChats);
+        
+        function filterChats() {
+            const searchTerm = searchBoxEl.value.toLowerCase();
+            
+            if (!searchTerm) {
+                filteredChats = [...allChats];
+            } else {
+                filteredChats = allChats.filter(chat => 
+                    chat.title.toLowerCase().includes(searchTerm) || 
+                    chat.chat_id.toString().includes(searchTerm)
+                );
+            }
+            
+            renderChatList();
+        }
+        
+        // Выбор всех чатов
+        selectAllBtn.addEventListener('click', () => {
+            filteredChats.forEach(chat => {
+                selectedChats.add(chat.chat_id);
+            });
+            renderChatList();
+            updateSelectedCount();
+        });
+        
+        // Снятие выбора со всех чатов
+        deselectAllBtn.addEventListener('click', () => {
+            selectedChats.clear();
+            renderChatList();
+            updateSelectedCount();
+        });
+        
+        // Отправка выбранных чатов
+        submitButton.addEventListener('click', () => {
+            const data = {
+                broadcast_id: broadcastId,
+                selected_chats: Array.from(selectedChats)
+            };
+            
+            tg.sendData(JSON.stringify(data));
+            tg.close();
+        });
+        
+        // Рендеринг списка чатов
+        function renderChatList() {
+            if (filteredChats.length === 0) {
+                chatListEl.innerHTML = '<div class="empty-result">Чаты не найдены</div>';
+                return;
+            }
+            
+            chatListEl.innerHTML = '';
+            
+            filteredChats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'chat-checkbox';
+                checkbox.value = chat.chat_id;
+                checkbox.checked = selectedChats.has(chat.chat_id);
+                
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        selectedChats.add(chat.chat_id);
+                    } else {
+                        selectedChats.delete(chat.chat_id);
+                    }
+                    updateSelectedCount();
+                });
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'chat-title';
+                titleSpan.innerText = chat.title;
+                
+                const typeSpan = document.createElement('span');
+                typeSpan.className = 'chat-type';
+                typeSpan.innerText = getChatTypeText(chat.type);
+                
+                chatItem.appendChild(checkbox);
+                chatItem.appendChild(titleSpan);
+                chatItem.appendChild(typeSpan);
+                
+                // Добавляем возможность клика по всему элементу для переключения чекбокса
+                chatItem.addEventListener('click', (e) => {
+                    if (e.target !== checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        if (checkbox.checked) {
+                            selectedChats.add(chat.chat_id);
+                        } else {
+                            selectedChats.delete(chat.chat_id);
+                        }
+                        updateSelectedCount();
+                    }
+                });
+                
+                chatListEl.appendChild(chatItem);
+            });
+            
+            updateSelectedCount();
+        }
+        
+        // Получение текстового описания типа чата
+        function getChatTypeText(type) {
+            switch (type) {
+                case 'private': return 'Личный';
+                case 'group': return 'Группа';
+                case 'supergroup': return 'Супергруппа';
+                case 'channel': return 'Канал';
+                default: return type;
+            }
+        }
+        
+        // Загрузка списка чатов
+        async function loadChats() {
+            try {
+                const response = await fetch(`/api/chats?initData=${encodeURIComponent(tg.initData)}&show_only_active=true`);
+                
+                if (!response.ok) {
+                    throw new Error(`Ошибка: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                allChats = data.active_chats;
+                filteredChats = [...allChats];
+                unavailableCount = data.unavailable_count;
+                
+                infoBarEl.innerText = `Доступно ${allChats.length} чатов. ${unavailableCount > 0 ? `Скрыто ${unavailableCount} недоступных чатов.` : ''}`;
+                
+                // Загружаем текущих получателей рассылки
+                await loadBroadcastRecipients();
+                
+                renderChatList();
+            } catch (error) {
+                chatListEl.innerHTML = `<div class="error">Ошибка загрузки списка чатов: ${error.message}</div>`;
+                infoBarEl.innerText = 'Произошла ошибка загрузки данных';
+                console.error('Ошибка загрузки списка чатов:', error);
+            }
+        }
+        
+        // Загрузка текущих получателей рассылки
+        async function loadBroadcastRecipients() {
+            try {
+                const response = await fetch(`/api/broadcast/${broadcastId}/recipients?initData=${encodeURIComponent(tg.initData)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Ошибка: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Добавляем текущих получателей в выбранные чаты
+                data.recipients.forEach(chatId => {
+                    selectedChats.add(chatId);
+                });
+                
+                updateSelectedCount();
+            } catch (error) {
+                console.warn('Ошибка загрузки текущих получателей:', error);
+                // Продолжаем без текущих получателей
+            }
+        }
+        
+        // Запускаем загрузку при загрузке страницы
+        loadChats();
+    </script>
+</body>
+</html>

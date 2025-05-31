@@ -1,0 +1,17 @@
+# Библиотеки для Telegram бота
+asyncio
+aiohttp
+python-dotenv==1.1.0
+
+# База данных
+sqlalchemy==2.0.40
+psycopg2-binary==2.9.10
+
+# Web-серверы и API
+fastapi==0.115.12
+uvicorn==0.34.2
+jinja2==3.1.6
+
+# Дополнительные утилиты
+pydantic==2.11.4
+httpx==0.28.1
